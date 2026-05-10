@@ -1,0 +1,13 @@
+.vscode/**
+.gitignore
+.npmignore
+*.vsix
+MACRO_SCOPE_REQUIREMENTS.md
+scripts/**
+server/Cargo.*
+server/src/**
+server/target/**
+src/**
+tsconfig.json
+**/*.map
+**/*.ts

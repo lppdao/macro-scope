@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# TypeScript / VS Code extension build output
+out/
+*.tsbuildinfo
+
+# Rust build output
+server/target/
+server/bin/*.exe
+
+# Packaged extension artifacts
+*.vsix
+
+# Logs and local environment
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env
+.env.*
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db

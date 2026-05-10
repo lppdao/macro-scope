@@ -1,0 +1,111 @@
+{
+  "name": "macro-scope",
+  "displayName": "Macro Scope",
+  "description": "Show the active C/C++ preprocessor macro-control chain for the current cursor line.",
+  "version": "0.1.2",
+  "publisher": "local",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lppdao/macro-scope.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:c",
+    "onLanguage:cpp",
+    "onCommand:macroScope.peekCurrentScope",
+    "onCommand:macroScope.refreshCurrentScope",
+    "onView:macroScope.currentScope"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "macroScope.peekCurrentScope",
+        "title": "Macro Scope: Peek Current Macro Scope"
+      },
+      {
+        "command": "macroScope.refreshCurrentScope",
+        "title": "Macro Scope: Refresh Current Macro Scope"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "macroScope.peekCurrentScope",
+          "when": "editorTextFocus && config.macroScope.enabled && macroScope.supportedLanguage",
+          "group": "navigation@50"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Macro Scope",
+      "properties": {
+        "macroScope.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "macroScope.currentScopeView.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "macroScope.boundaryInlayHints.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "macroScope.debounceMs": {
+          "type": "number",
+          "default": 80,
+          "minimum": 0
+        },
+        "macroScope.maxConditionLength": {
+          "type": "number",
+          "default": 80,
+          "minimum": 8
+        },
+        "macroScope.supportedLanguages": {
+          "type": "array",
+          "default": [
+            "c",
+            "cpp"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "macroScope.currentScope",
+          "name": "Current Macro Scope"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build-server": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-server.ps1",
+    "test-server": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/with-rust-env.ps1 cargo test --manifest-path server/Cargo.toml",
+    "test:smoke": "node scripts/parser-smoke-test.mjs",
+    "test": "npm run compile && npm run test-server",
+    "package:vsix": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^5.4.5"
+  }
+}
