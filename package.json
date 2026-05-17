@@ -2,7 +2,7 @@
   "name": "macro-scope",
   "displayName": "Macro Scope",
   "description": "Show the active C/C++ preprocessor macro-control chain for the current cursor line.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "local",
   "private": true,
   "repository": {
