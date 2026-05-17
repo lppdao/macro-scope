@@ -32,12 +32,15 @@ function hostKey() {
 
 function parseArgs(argv) {
   let target;
+  let noZigbuild = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--target') {
       target = argv[++i];
     } else if (arg.startsWith('--target=')) {
       target = arg.slice('--target='.length);
+    } else if (arg === '--no-zigbuild') {
+      noZigbuild = true;
     } else if (arg === '-h' || arg === '--help') {
       printUsage();
       process.exit(0);
@@ -47,23 +50,30 @@ function parseArgs(argv) {
       process.exit(2);
     }
   }
-  return { target, explicit: target !== undefined };
+  return { target, explicit: target !== undefined, noZigbuild };
 }
 
 function printUsage() {
-  console.log(`Usage: build-server.mjs [--target <platform-arch>]
+  console.log(`Usage: build-server.mjs [--target <platform-arch>] [--no-zigbuild]
 
 Targets:
   win32-x64   Build for Windows x64 (cargo build --target x86_64-pc-windows-msvc)
   linux-x64   Build for Linux x64 with static musl linkage (cargo zigbuild
               --target x86_64-unknown-linux-musl) — requires cargo-zigbuild and zig.
 
+Flags:
+  --no-zigbuild   Skip zigbuild even for targets that default to it. Use this
+                  when the host triple already matches the target (e.g. CI on
+                  ubuntu-latest building linux-x64): plain "cargo build" works
+                  and avoids the zigbuild dependency. Requires musl-tools on
+                  Debian/Ubuntu for the linux-x64 target.
+
 Without --target, builds for the host platform using the default Rust toolchain
 (no --target passed to cargo). Suitable for local development; not guaranteed
 to be portable across Linux distros.`);
 }
 
-const { target, explicit } = parseArgs(process.argv.slice(2));
+const { target, explicit, noZigbuild } = parseArgs(process.argv.slice(2));
 const key = target ?? hostKey();
 const cfg = TARGETS[key];
 if (!cfg) {
@@ -71,17 +81,20 @@ if (!cfg) {
   process.exit(2);
 }
 
+const useZigbuild = cfg.zigbuild && !noZigbuild;
+
 if (!explicit) {
   console.log(
     `Building macro-scope-server for host (${key}). ` +
       `Use --target linux-x64 to cross-build a static musl binary suitable for release.`
   );
 } else {
-  console.log(`Building macro-scope-server for ${key} (${cfg.triple}).`);
+  const note = useZigbuild ? 'via cargo zigbuild' : 'via plain cargo build';
+  console.log(`Building macro-scope-server for ${key} (${cfg.triple}) ${note}.`);
 }
 
 const manifest = join(repoRoot, 'server', 'Cargo.toml');
-const subcommand = cfg.zigbuild ? 'zigbuild' : 'build';
+const subcommand = useZigbuild ? 'zigbuild' : 'build';
 const cargoArgs = [subcommand, '--manifest-path', manifest, '--release'];
 if (explicit) {
   cargoArgs.push('--target', cfg.triple);

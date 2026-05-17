@@ -18,11 +18,11 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             rust-target: x86_64-unknown-linux-musl
-            build-script: build-server:linux-x64
+            extra-build-args: --no-zigbuild
           - os: windows-latest
             target: win32-x64
             rust-target: x86_64-pc-windows-msvc
-            build-script: build-server:win32-x64
+            extra-build-args: ''
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -49,11 +49,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.rust-target }}-
 
-      - name: Install Zig and cargo-zigbuild
+      - name: Install musl-tools (Linux only)
         if: matrix.target == 'linux-x64'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-zigbuild,zig
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
 
       - name: Install npm dependencies
         run: npm ci
@@ -65,7 +65,7 @@ jobs:
         run: npm run test-server
 
       - name: Build server binary
-        run: npm run ${{ matrix.build-script }}
+        run: node scripts/build-server.mjs --target ${{ matrix.target }} ${{ matrix.extra-build-args }}
 
       - name: Verify Linux binary is statically linked
         if: matrix.target == 'linux-x64'

@@ -80,6 +80,20 @@ npm run build-server:linux-x64
 
 Output: `server/bin/linux-x64/macro-scope-server` (static musl, no glibc dependency).
 
+#### Native Linux host: skip zigbuild
+
+If you build on a Linux host you can avoid zigbuild entirely and let `cargo`
+link directly:
+
+```sh
+sudo apt-get install -y musl-tools     # provides musl-gcc as the linker
+rustup target add x86_64-unknown-linux-musl
+npm run build-server:linux-x64 -- --no-zigbuild
+```
+
+This is what the CI workflow does on `ubuntu-latest`. zigbuild is still
+required when cross-building from Windows/macOS to Linux.
+
 ### All supported targets
 
 ```sh
