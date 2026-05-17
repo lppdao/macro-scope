@@ -12,3 +12,7 @@ tracing = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4"
+
+[profile.release]
+strip = true
+lto = "thin"

@@ -93,8 +93,11 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "build-server": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-server.ps1",
-    "test-server": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/with-rust-env.ps1 cargo test --manifest-path server/Cargo.toml",
+    "build-server": "node scripts/build-server.mjs",
+    "build-server:win32-x64": "node scripts/build-server.mjs --target win32-x64",
+    "build-server:linux-x64": "node scripts/build-server.mjs --target linux-x64",
+    "build-server:all": "npm run build-server:win32-x64 && npm run build-server:linux-x64",
+    "test-server": "node scripts/with-rust-env.mjs cargo test --manifest-path server/Cargo.toml",
     "test:smoke": "node scripts/parser-smoke-test.mjs",
     "test": "npm run compile && npm run test-server",
     "package:vsix": "vsce package"

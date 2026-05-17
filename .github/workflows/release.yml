@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            rust-target: x86_64-unknown-linux-musl
+            extra-build-args: --no-zigbuild
+          - os: windows-latest
+            target: win32-x64
+            rust-target: x86_64-pc-windows-msvc
+            extra-build-args: ''
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server/target
+          key: ${{ runner.os }}-cargo-${{ matrix.rust-target }}-${{ hashFiles('server/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust-target }}-
+
+      - name: Install musl-tools (Linux only)
+        if: matrix.target == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Run Rust tests
+        run: npm run test-server
+
+      - name: Build server binary
+        run: node scripts/build-server.mjs --target ${{ matrix.target }} ${{ matrix.extra-build-args }}
+
+      - name: Verify Linux binary is statically linked
+        if: matrix.target == 'linux-x64'
+        run: |
+          bin=server/bin/linux-x64/macro-scope-server
+          file_out=$(file "$bin")
+          ldd_out=$(ldd "$bin" 2>&1 || true)
+          echo "file: $file_out"
+          echo "ldd:  $ldd_out"
+          if echo "$file_out" | grep -qE 'static(ally|-pie)? linked'; then
+            echo "Statically linked (per file): OK"
+            exit 0
+          fi
+          if echo "$ldd_out" | grep -qE '(not a dynamic executable|statically linked)'; then
+            echo "Statically linked (per ldd): OK"
+            exit 0
+          fi
+          echo "ERROR: binary appears to be dynamically linked"
+          exit 1
+
+      - name: Package platform-specific VSIX
+        if: github.event_name != 'pull_request'
+        run: npx --no-install vsce package --target ${{ matrix.target }} --out macro-scope-${{ matrix.target }}.vsix
+
+      - name: Upload VSIX artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-scope-${{ matrix.target }}
+          path: macro-scope-${{ matrix.target }}.vsix
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish release with VSIX files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.vsix
+          fail_on_unmatched_files: true
+          generate_release_notes: true
