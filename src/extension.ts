@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import {
@@ -403,14 +404,52 @@ function boundaryDirectiveEndCharacter(text: string): number | undefined {
 }
 
 function resolveServerPath(context: vscode.ExtensionContext): string {
-  const extension = process.platform === 'win32' ? '.exe' : '';
-  const bundled = path.join(context.extensionPath, 'server', 'bin', `macro-scope-server${extension}`);
-  const release = path.join(context.extensionPath, 'server', 'target', 'release', `macro-scope-server${extension}`);
-  const debug = path.join(context.extensionPath, 'server', 'target', 'debug', `macro-scope-server${extension}`);
-  if (require('fs').existsSync(bundled)) {
-    return bundled;
+  const exe = process.platform === 'win32' ? '.exe' : '';
+  const platformArch = `${process.platform}-${process.arch}`;
+  const binaryName = `macro-scope-server${exe}`;
+
+  const targetTriples: Record<string, string> = {
+    'win32-x64': 'x86_64-pc-windows-msvc',
+    'linux-x64': 'x86_64-unknown-linux-musl'
+  };
+
+  const candidates: string[] = [
+    path.join(context.extensionPath, 'server', 'bin', platformArch, binaryName),
+    path.join(context.extensionPath, 'server', 'bin', binaryName)
+  ];
+
+  const triple = targetTriples[platformArch];
+  if (triple) {
+    candidates.push(
+      path.join(context.extensionPath, 'server', 'target', triple, 'release', binaryName)
+    );
   }
-  return require('fs').existsSync(release) ? release : debug;
+  candidates.push(
+    path.join(context.extensionPath, 'server', 'target', 'release', binaryName),
+    path.join(context.extensionPath, 'server', 'target', 'debug', binaryName)
+  );
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      ensureExecutable(candidate);
+      return candidate;
+    }
+  }
+  return candidates[candidates.length - 1];
+}
+
+function ensureExecutable(binaryPath: string): void {
+  if (process.platform === 'win32') {
+    return;
+  }
+  try {
+    const mode = fs.statSync(binaryPath).mode;
+    if ((mode & 0o111) === 0) {
+      fs.chmodSync(binaryPath, mode | 0o755);
+    }
+  } catch (error) {
+    console.warn(`Macro Scope: failed to ensure executable bit on ${binaryPath}`, error);
+  }
 }
 
 function labelForScope(scope: ScopeItem, maxLength: number): string {
