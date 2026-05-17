@@ -70,13 +70,21 @@ jobs:
       - name: Verify Linux binary is statically linked
         if: matrix.target == 'linux-x64'
         run: |
-          file server/bin/linux-x64/macro-scope-server
-          if ldd server/bin/linux-x64/macro-scope-server 2>&1 | grep -qv 'not a dynamic executable'; then
-            echo "ERROR: binary is not statically linked"
-            ldd server/bin/linux-x64/macro-scope-server
-            exit 1
+          bin=server/bin/linux-x64/macro-scope-server
+          file_out=$(file "$bin")
+          ldd_out=$(ldd "$bin" 2>&1 || true)
+          echo "file: $file_out"
+          echo "ldd:  $ldd_out"
+          if echo "$file_out" | grep -qE 'static(ally|-pie)? linked'; then
+            echo "Statically linked (per file): OK"
+            exit 0
           fi
-          echo "Statically linked: OK"
+          if echo "$ldd_out" | grep -qE '(not a dynamic executable|statically linked)'; then
+            echo "Statically linked (per ldd): OK"
+            exit 0
+          fi
+          echo "ERROR: binary appears to be dynamically linked"
+          exit 1
 
       - name: Package platform-specific VSIX
         if: github.event_name != 'pull_request'
